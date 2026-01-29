@@ -4,19 +4,19 @@ import { useState, useEffect } from 'react';
 import { Container, VStack, Heading, Text, Box } from '@chakra-ui/react';
 import { GameBoard } from '@/components/GameBoard';
 import { GameControls } from '@/components/GameControls';
-import { TelegramIdInput } from '@/components/TelegramIdInput';
 import { PromoCodeDisplay } from '@/components/PromoCodeDisplay';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameState } from '@/lib/hooks/useGameState';
 import { useComputerPlayer } from '@/lib/hooks/useComputerPlayer';
+import { useTelegramWebApp } from '@/lib/hooks/useTelegramWebApp';
 import { generatePromoCode } from '@/lib/utils/gameLogic';
 
 export default function Home() {
-  const [telegramId, setTelegramId] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState<string>('');
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [showLossModal, setShowLossModal] = useState(false);
 
+  const { user, webApp, isLoading } = useTelegramWebApp();
   const { gameState, makeMove, startGame, resetGame } = useGameState();
 
   // Computer player hook
@@ -27,13 +27,23 @@ export default function Home() {
     makeMove
   );
 
+  // Auto-start game when user is loaded
+  useEffect(() => {
+    if (user && gameState.status === 'idle') {
+      startGame();
+    }
+  }, [user, gameState.status, startGame]);
+
   // Handle game over states
   useEffect(() => {
     const handleGameEnd = async () => {
-      if (gameState.status === 'won' && telegramId) {
+      if (gameState.status === 'won' && user) {
         // Generate promo code
         const code = generatePromoCode();
         setPromoCode(code);
+
+        // Trigger haptic feedback if available
+        webApp?.HapticFeedback.notificationOccurred('success');
 
         // Send telegram message
         try {
@@ -41,7 +51,7 @@ export default function Home() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              telegramId,
+              telegramId: user.id.toString(),
               message: 'Победа! Промокод выдан:',
               promoCode: code,
             }),
@@ -52,14 +62,17 @@ export default function Home() {
 
         // Show promo modal
         setShowPromoModal(true);
-      } else if (gameState.status === 'lost' && telegramId) {
+      } else if (gameState.status === 'lost' && user) {
+        // Trigger haptic feedback if available
+        webApp?.HapticFeedback.notificationOccurred('error');
+
         // Send telegram message
         try {
           await fetch('/api/telegram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              telegramId,
+              telegramId: user.id.toString(),
               message: 'Проигрыш',
             }),
           });
@@ -73,16 +86,13 @@ export default function Home() {
     };
 
     handleGameEnd();
-  }, [gameState.status, telegramId]);
-
-  const handleTelegramSubmit = (id: string) => {
-    setTelegramId(id);
-    startGame();
-  };
+  }, [gameState.status, user, webApp]);
 
   const handleCellClick = (index: number) => {
     // Only allow moves when it's player's turn (X)
     if (gameState.currentPlayer === 'X' && gameState.status === 'playing') {
+      // Trigger haptic feedback on cell click
+      webApp?.HapticFeedback.impactOccurred('light');
       makeMove(index);
     }
   };
@@ -95,12 +105,37 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setTelegramId(null);
     setPromoCode('');
     setShowPromoModal(false);
     setShowLossModal(false);
     resetGame();
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Container maxW="container.md" py={8} minH="100vh">
+        <VStack spacing={8} justify="center" minH="50vh">
+          <Text fontSize="lg" color="gray.600">
+            Загрузка...
+          </Text>
+        </VStack>
+      </Container>
+    );
+  }
+
+  // Show error if no user
+  if (!user) {
+    return (
+      <Container maxW="container.md" py={8} minH="100vh">
+        <VStack spacing={8} justify="center" minH="50vh">
+          <Text fontSize="lg" color="red.500" textAlign="center">
+            ⚠️ Пожалуйста, откройте игру из Telegram бота
+          </Text>
+        </VStack>
+      </Container>
+    );
+  }
 
   return (
     <Container maxW="container.md" py={8} minH="100vh">
@@ -117,42 +152,38 @@ export default function Home() {
             Крестики-Нолики
           </Heading>
           <Text fontSize="lg" color="gray.600">
-            Выиграй и получи промокод! 🎁
+            Привет, {user.first_name}! Выиграй и получи промокод! 🎁
           </Text>
         </Box>
 
-        {/* Show Telegram Input or Game */}
-        {!telegramId ? (
-          <TelegramIdInput onSubmit={handleTelegramSubmit} />
-        ) : (
-          <VStack spacing={6} w="full">
-            {/* Game Controls */}
-            <GameControls
-              onReset={handleReset}
-              currentPlayer={gameState.currentPlayer}
-              gameStatus={gameState.status}
-            />
+        {/* Game */}
+        <VStack spacing={6} w="full">
+          {/* Game Controls */}
+          <GameControls
+            onReset={handleReset}
+            currentPlayer={gameState.currentPlayer}
+            gameStatus={gameState.status}
+          />
 
-            {/* Game Board */}
-            <GameBoard
-              board={gameState.board}
-              onCellClick={handleCellClick}
-              disabled={
-                gameState.currentPlayer === 'O' ||
-                gameState.status === 'won' ||
-                gameState.status === 'lost' ||
-                gameState.status === 'draw'
-              }
-            />
+          {/* Game Board */}
+          <GameBoard
+            board={gameState.board}
+            onCellClick={handleCellClick}
+            disabled={
+              gameState.currentPlayer === 'O' ||
+              gameState.status === 'won' ||
+              gameState.status === 'lost' ||
+              gameState.status === 'draw'
+            }
+          />
 
-            {/* Draw message */}
-            {gameState.status === 'draw' && (
-              <Text fontSize="lg" color="gray.600" textAlign="center">
-                Ничья! Попробуйте ещё раз 🤝
-              </Text>
-            )}
-          </VStack>
-        )}
+          {/* Draw message */}
+          {gameState.status === 'draw' && (
+            <Text fontSize="lg" color="gray.600" textAlign="center">
+              Ничья! Попробуйте ещё раз 🤝
+            </Text>
+          )}
+        </VStack>
 
         {/* Promo Code Modal (on win) */}
         <PromoCodeDisplay
