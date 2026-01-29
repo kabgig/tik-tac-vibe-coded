@@ -15,6 +15,7 @@ export default function Home() {
   const [promoCode, setPromoCode] = useState<string>('');
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [showLossModal, setShowLossModal] = useState(false);
+  const [userTracked, setUserTracked] = useState(false);
 
   const { user, webApp, isLoading } = useTelegramWebApp();
   const { gameState, makeMove, startGame, resetGame } = useGameState();
@@ -26,6 +27,36 @@ export default function Home() {
     gameState.status,
     makeMove
   );
+
+  // Track user in database when loaded
+  useEffect(() => {
+    const trackUser = async () => {
+      if (user && !userTracked) {
+        try {
+          const response = await fetch('/api/users/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              userName: user.username,
+              firstName: user.first_name,
+              lastName: user.last_name,
+            }),
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            console.log('User tracked:', data.exists ? 'existing' : 'new');
+            setUserTracked(true);
+          }
+        } catch (error) {
+          console.error('Failed to track user:', error);
+        }
+      }
+    };
+
+    trackUser();
+  }, [user, userTracked]);
 
   // Auto-start game when user is loaded
   useEffect(() => {
