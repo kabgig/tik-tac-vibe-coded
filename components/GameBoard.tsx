@@ -12,13 +12,12 @@ interface GameBoardProps {
 
 export function GameBoard({ board, onCellClick, disabled = false }: GameBoardProps) {
   return (
-    <Box>
+    <Box w="100%" maxW="400px" mx="auto">
       <SimpleGrid
         columns={3}
-        spacing={4}
-        maxW="400px"
-        mx="auto"
-        p={4}
+        spacing={{ base: 2, sm: 3, md: 4 }}
+        w="100%"
+        px={{ base: 2, sm: 4 }}
       >
         {board.map((value, index) => (
           <GameCell

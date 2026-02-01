@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@chakra-ui/react';
+import { Button, Box } from '@chakra-ui/react';
 import { CellValue } from '@/lib/types/game';
 
 interface GameCellProps {
@@ -14,14 +14,19 @@ export function GameCell({ value, onClick, disabled = false }: GameCellProps) {
     <Button
       onClick={onClick}
       disabled={disabled}
-      h="120px"
-      w="120px"
-      fontSize="4xl"
+      w="100%"
+      h="0"
+      pb="100%"
+      position="relative"
+      fontSize={{ base: '3xl', sm: '4xl' }}
       fontWeight="bold"
       bg={value ? 'white' : 'pink.50'}
       color={value === 'X' ? 'pink.500' : 'brand.500'}
       borderWidth="3px"
       borderColor="pink.200"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
       _hover={{
         bg: value ? 'white' : 'pink.100',
         borderColor: 'pink.300',
@@ -37,7 +42,14 @@ export function GameCell({ value, onClick, disabled = false }: GameCellProps) {
       }}
       shadow="md"
     >
-      {value}
+      <Box
+        position="absolute"
+        top="50%"
+        left="50%"
+        transform="translate(-50%, -50%)"
+      >
+        {value}
+      </Box>
     </Button>
   );
 }
