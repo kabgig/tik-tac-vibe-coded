@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/utils/mongodb';
 import User from '@/lib/models/User';
 
@@ -25,8 +26,12 @@ export async function POST(request: NextRequest) {
 
     // Check if user exists
     console.log('Checking if user exists...');
+    console.log('Database name:', mongoose.connection.db?.databaseName);
+    console.log('Collection name:', User.collection.name);
+    
     let user = await User.findOne({ userId });
     console.log('User exists:', !!user);
+    console.log('User document:', user ? JSON.stringify(user) : null);
 
     if (user) {
       // User exists, return existing user
