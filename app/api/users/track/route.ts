@@ -6,6 +6,10 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, userName, firstName, lastName } = await request.json();
 
+    console.log('=== User Track Request ===');
+    console.log('User data:', { userId, userName, firstName, lastName });
+    console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
+
     // Validate input
     if (!userId || !firstName) {
       return NextResponse.json(
@@ -15,13 +19,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to database
+    console.log('Connecting to MongoDB...');
     await connectDB();
+    console.log('MongoDB connected successfully');
 
     // Check if user exists
+    console.log('Checking if user exists...');
     let user = await User.findOne({ userId });
+    console.log('User exists:', !!user);
 
     if (user) {
       // User exists, return existing user
+      console.log('Returning existing user');
       return NextResponse.json({
         success: true,
         exists: true,
@@ -37,6 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // User doesn't exist, create new user
+    console.log('Creating new user...');
     user = await User.create({
       userId,
       userName,
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
       isActive: true,
       blocked: false,
     });
+    console.log('User created successfully:', user._id);
 
     return NextResponse.json({
       success: true,
